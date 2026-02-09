@@ -28,13 +28,7 @@ class AdvertisementSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """Метод для создания"""
-
-        # Простановка значения поля создатель по-умолчанию.
-        # Текущий пользователь является создателем объявления
-        # изменить или переопределить его через API нельзя.
-        # обратите внимание на `context` – он выставляется автоматически
-        # через методы ViewSet.
-        # само поле при этом объявляется как `read_only=True`
+       
         validated_data["creator"] = self.context["request"].user
         return super().create(validated_data)
 
@@ -44,24 +38,32 @@ class AdvertisementSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         user = request.user
 
-        if data.get('status') == AdvertisementStatusChoices.OPEN or (
-            self.instance and
-            self.instance.status == AdvertisementStatusChoices.OPEN and
-            data.get('status') != AdvertisementStatusChoices.CLOSED
-        ):
+        if not self.instance:   # Создание
+            is_opening = data.get('status') == AdvertisementStatusChoices.OPEN
+        else:   # Обновление
+            is_opening = (
+                self.instance.status == AdvertisementStatusChoices.CLOSED and 
+                data.get('status') == AdvertisementStatusChoices.OPEN
+            )
+        
+        # Если открываем новое объявление
+        if is_opening:            
             # Подсчет открытых объявлений пользователя
             open_ads_count = Advertisement.objects.filter(
                 creator=user,
                 status=AdvertisementStatusChoices.OPEN
             ).count()
-
-        # если кол-во открытых больше 10, то ошибка
-        if not self.instance:
+        
+            # Если это обновление и текущее объявление уже OPEN, корректируем счетчик
+            if self.isinstance and self.instance.status == AdvertisementStatusChoices.OPEN:
+                open_ads_count -= 1
+            
+            # если кол-во открытых больше 10, то ошибка        
             if open_ads_count >= 10:
                 raise serializers.ValidationError(
                     "У пользователя не может быть больше 10 открытых объявлений."
                 )
-            
+                
         return data
 
 

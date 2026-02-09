@@ -40,7 +40,7 @@ class AdvertisementViewSet(ModelViewSet):
             return [IsAuthenticated()]
         elif self.action in ["update", "partial_update", "destroy"]:
             if self.request.user and self.request.user.is_staff:
-                return [IsAdminUser()]
+                return [IsAdminUser(), IsOwnerOrReadOnly()]
             else:
                 return [IsAuthenticated(), IsOwnerOrReadOnly()]       
         
@@ -55,7 +55,7 @@ class AdvertisementViewSet(ModelViewSet):
         advertisement = self.get_object()
         user = request.user
 
-        if metod == 'POST':
+        if request.metod == 'POST':
             if advertisement.creator == user:
                 return Response(
                     {'error': 'Нельзя добавить свое объявление в избранное'},
